@@ -124,7 +124,7 @@ textarea{resize:vertical}
 .tool{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:14px;font-weight:600;color:var(--fg)}
 .tool.on{border-color:var(--trace);color:var(--trace)}
 .media{display:flex;flex-wrap:wrap;gap:8px}
-.thumb{width:72px;height:72px;border-radius:10px;border:1px solid var(--line);background:var(--ink) center/cover no-repeat;padding:0}
+.thumb{position:relative;width:72px;height:72px;border-radius:10px;border:1px solid var(--line);background:var(--ink) center/cover no-repeat;padding:0}
 .aud{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--trace);color:var(--trace);border-radius:999px;padding:5px 6px 5px 10px;font:600 13px/1 var(--f-num);background:transparent}
 .aud .x{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:0;background:rgba(79,195,247,.14);color:var(--trace);padding:0}
 .aud svg.i{width:16px;height:16px}
@@ -132,6 +132,11 @@ textarea{resize:vertical}
 .pager .btn{min-width:0}
 .pager .btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+.thumb.roll::after{content:"";position:absolute;right:4px;bottom:4px;width:16px;height:16px;border-radius:50%;background:var(--ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.3l2.6 2.5L12 5.4' fill='none' stroke='%2306180F' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/100% no-repeat;box-shadow:0 0 0 2px var(--ink)}
+.rollbox{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--trace);border-radius:12px;padding:10px 12px;font-size:14px;color:var(--trace)}
+.rollbox .btn{border-color:var(--trace);color:var(--trace);background:transparent}
+.switch{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px}
+.switch input{width:20px;height:20px;accent-color:var(--sun);flex:none;margin-top:1px}
 /* Synthèse */
 .kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px;margin:0}
 .kv dt{color:var(--muted)}
@@ -219,6 +224,7 @@ textarea{resize:vertical}
       <span class="flabel">Matériel d'audit emporté</span>
       <div class="checks" id="mat"></div>
     </div>
+    <label class="switch" id="roll-opt"><input type="checkbox" id="in-roll"><span><b>Copier les photos dans la Pellicule</b><br><span class="hint">Après chaque photo, l'app propose « Enregistrer dans Photos » : copie de secours dans l'app Photos de l'iPhone, en plus du stockage de l'app. Réglage propre à ce téléphone.</span></span></label>
     <div class="stack">
       <button class="btn primary" id="b-create" type="button">Commencer l'audit</button>
     </div>
@@ -244,6 +250,7 @@ textarea{resize:vertical}
       <div class="meter"><i id="au-bar"></i></div>
       <div class="chips" id="au-chips"></div>
     </div>
+    <div class="rollbox" id="rollbox" hidden><span id="rollbox-t"></span><button class="btn sm" id="b-rollall" type="button">Copier</button></div>
     <div class="stack" id="toc"></div>
   </div>
 </section>
@@ -305,6 +312,19 @@ textarea{resize:vertical}
     <div class="row">
       <button class="btn ghost" id="b-rec-cancel" type="button" style="flex:1">Annuler</button>
       <button class="btn primary" id="b-rec-stop" type="button" style="flex:2">Arrêter et enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Copie dans la Pellicule -->
+<div class="veil" id="roll" hidden>
+  <div class="sheet">
+    <span class="eyebrow">Copie de secours</span>
+    <h2 id="roll-title">Copier dans la Pellicule</h2>
+    <p class="hint">Touchez « Enregistrer dans Photos », puis <b>Enregistrer l'image</b> dans la feuille de partage d'iOS.</p>
+    <div class="row">
+      <button class="btn ghost" id="b-roll-later" type="button" style="flex:1">Plus tard</button>
+      <button class="btn primary" id="b-roll-go" type="button" style="flex:2">Enregistrer dans Photos</button>
     </div>
   </div>
 </div>
@@ -434,6 +454,7 @@ function renderNew(edit){
   $('#new-title').textContent=edit?'Infos & matériel':'Type de centrale';
   $('#new-lede').hidden=!!edit;
   $('#b-create').textContent=edit?'Enregistrer':'Commencer l\'audit';
+  $('#roll-opt').hidden=!canRoll();$('#in-roll').checked=rollOn();
   const locked=edit&&Object.values(A.answers).some(x=>x.s||x.c);
   document.querySelectorAll('.opt').forEach(o=>{o.setAttribute('aria-pressed',String(o.dataset.type===newType));o.disabled=!!locked&&o.dataset.type!==newType;});
   $('#in-site').value=src.site;$('#in-date').value=src.date;$('#in-auditor').value=src.auditor;
@@ -451,6 +472,7 @@ $('#b-create').onclick=async()=>{
   const mat={};document.querySelectorAll('#mat input').forEach(c=>{if(c.checked)mat[c.dataset.i]=true;});
   const site=$('#in-site').value.trim(),date=$('#in-date').value,auditor=$('#in-auditor').value.trim();
   if(auditor)lsSet('auditor',auditor);
+  if(canRoll())lsSet('roll',$('#in-roll').checked?'1':'0');
   if(editMode){Object.assign(A,{type:newType,site,date,auditor,mat});M=model(A.type);await dbPut(A);renderAudit();return;}
   const a={id:uid(),type:newType,site,date,auditor,mat,answers:{},general:'',created:Date.now(),updated:Date.now()};
   await dbPut(a);
@@ -479,11 +501,15 @@ function renderAudit(){
   });
   html+='</div>';
   $('#toc').innerHTML=html;
+  const pend=MEDIA.filter(m=>m.kind==='photo'&&!m.roll);
+  $('#rollbox').hidden=!(rollOn()&&pend.length);
+  $('#rollbox-t').textContent=`${pend.length} photo${pend.length>1?'s':''} pas encore dans la Pellicule`;
   $('#toc').querySelectorAll('.sbtn').forEach(b=>b.onclick=()=>openSec(+b.dataset.i));
   show('s-audit');
 }
 $('#b-audit-home').onclick=async()=>{await flush();A=null;dropUrls();renderHome();};
 $('#b-edit').onclick=()=>renderNew(true);
+$('#b-rollall').onclick=()=>{const pend=MEDIA.filter(m=>m.kind==='photo'&&!m.roll).sort((a,b)=>a.created-b.created);if(pend.length)askRoll(pend);};
 
 /* ---------- Section ---------- */
 function openSec(i){secIdx=i;renderSec();show('s-sec');}
@@ -535,7 +561,7 @@ function renderMedia(card){
   const r=+card.dataset.r,box=card.querySelector('.media');
   const list=rowMedia(r);
   box.innerHTML=list.map(m=>m.kind==='photo'
-    ?`<button class="thumb" type="button" data-id="${m.id}" style="background-image:url('${urlOf(m)}')" aria-label="Photo"></button>`
+    ?`<button class="thumb${m.roll?' roll':''}" type="button" data-id="${m.id}" style="background-image:url('${urlOf(m)}')" aria-label="Photo"></button>`
     :`<span class="aud"><button class="x" type="button" data-play="${m.id}" aria-label="Écouter">${ICON.play}</button><span>${fmtDur(m.dur)}</span><button class="x" type="button" data-del="${m.id}" aria-label="Supprimer">${ICON.x}</button></span>`).join('');
   box.querySelectorAll('.thumb').forEach(t=>t.onclick=()=>openViewer(MEDIA.find(m=>m.id===t.dataset.id),card));
   box.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>playAudio(MEDIA.find(m=>m.id===b.dataset.play),b));
@@ -565,6 +591,32 @@ $('#f-photo').onchange=async e=>{
   }catch(err){toast('Photo non enregistrée : '+(err.message||err),4000);}
   busy(null);
   const card=document.querySelector(`.item[data-r="${r}"]`);if(card)renderMedia(card);
+  if(rollOn()){const pend=MEDIA.filter(m=>m.kind==='photo'&&m.row===r&&!m.roll);if(pend.length)askRoll(pend);}
+};
+
+/* ---------- Copie dans la Pellicule (via la feuille de partage iOS / Android) ---------- */
+function photoFile(m){return new File([m.blob],mediaName(m),{type:'image/jpeg'});}
+function canRoll(){
+  if(!navigator.canShare||!matchMedia('(pointer:coarse)').matches)return false;
+  try{return navigator.canShare({files:[new File([new Blob(['x'],{type:'image/jpeg'})],'t.jpg',{type:'image/jpeg'})]});}catch(e){return false;}
+}
+function rollOn(){const v=lsGet('roll');return canRoll()&&v!=='0';}
+let rollPend=[];
+function askRoll(list){
+  rollPend=list.slice(0,20);
+  $('#roll-title').textContent=rollPend.length>1?`Copier ${rollPend.length} photos dans la Pellicule`:'Copier la photo dans la Pellicule';
+  $('#roll').hidden=false;
+}
+$('#b-roll-later').onclick=()=>{$('#roll').hidden=true;rollPend=[];if(current==='s-audit')renderAudit();};
+$('#b-roll-go').onclick=async()=>{
+  const list=rollPend;$('#roll').hidden=true;rollPend=[];if(!list.length)return;
+  try{
+    await navigator.share({files:list.map(photoFile)});
+    for(const m of list){m.roll=true;await mediaPut(m);}
+    toast(list.length>1?`${list.length} photos copiées`:'Photo copiée dans la Pellicule');
+  }catch(e){if(e.name!=='AbortError')toast('Copie impossible : '+(e.message||e.name),4000);}
+  document.querySelectorAll('.item').forEach(c=>{if(MEDIA.some(m=>m.row===+c.dataset.r))renderMedia(c);});
+  if(current==='s-audit')renderAudit();
 };
 async function shrink(file){
   const MAX=2048;
@@ -753,7 +805,7 @@ function addMedia(zip){
   for(const m of MEDIA){zip.file(`${m.kind==='photo'?'photos':'vocaux'}/${mediaName(m)}`,m.blob,{compression:'STORE'});}
 }
 function backupJson(){
-  const meta=MEDIA.map(m=>({id:m.id,row:m.row,kind:m.kind,mime:m.mime,w:m.w,h:m.h,dur:m.dur,created:m.created,file:`${m.kind==='photo'?'photos':'vocaux'}/${mediaName(m)}`}));
+  const meta=MEDIA.map(m=>({id:m.id,row:m.row,kind:m.kind,mime:m.mime,w:m.w,h:m.h,dur:m.dur,created:m.created,roll:!!m.roll,file:`${m.kind==='photo'?'photos':'vocaux'}/${mediaName(m)}`}));
   return JSON.stringify({app:'audit-centrale-sol',version:1,audit:A,media:meta},null,1);
 }
 async function buildStandalone(){
@@ -825,7 +877,7 @@ $('#f-import').onchange=async e=>{
     const a=data.audit;const existing=(await dbAll()).find(x=>x.id===a.id);
     if(existing&&!confirm('Cet audit existe déjà sur ce téléphone. Le remplacer par la sauvegarde ?')){busy(null);return;}
     if(existing){for(const m of await mediaOf(a.id))await mediaDel(m.id);}
-    for(const m of data.media){const f=z.file(m.file);if(!f)continue;const blob=new Blob([await f.async('arraybuffer')],{type:m.mime});await mediaPut({id:m.id,audit:a.id,row:m.row,kind:m.kind,blob,mime:m.mime,w:m.w,h:m.h,dur:m.dur,created:m.created});}
+    for(const m of data.media){const f=z.file(m.file);if(!f)continue;const blob=new Blob([await f.async('arraybuffer')],{type:m.mime});await mediaPut({id:m.id,audit:a.id,row:m.row,kind:m.kind,blob,mime:m.mime,w:m.w,h:m.h,dur:m.dur,created:m.created,roll:!!m.roll});}
     await dbPut(a);busy(null);toast('Audit importé');openAudit(a);
   }catch(err){busy(null);toast('Import impossible : '+(err.message||err),5000);}
 };

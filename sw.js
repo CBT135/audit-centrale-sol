@@ -1,6 +1,6 @@
 // Mode hors ligne : l'app reste utilisable sur site sans réseau.
 // Changez VERSION à chaque mise à jour des fichiers pour forcer le rafraîchissement.
-const VERSION = 'audit-sol-v1';
+const VERSION = 'audit-sol-v2';
 const CORE = ['./', 'index.html', 'checklist.js', 'lib/jszip.min.js', 'modele-audit.xlsx', 'manifest.webmanifest', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

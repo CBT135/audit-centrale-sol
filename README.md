@@ -28,6 +28,7 @@ Les fichiers joints sont nommés d'après la ligne Excel : `L005_Existe-t-il-des
 
 - Tout est stocké **sur le téléphone** (IndexedDB) ; rien n'est envoyé sur un serveur.
 - Les photos sont réduites à 2048 px (JPEG) pour limiter la place.
+- **Copie dans la Pellicule** (option, activée par défaut sur téléphone) : après chaque photo, « Enregistrer dans Photos » ouvre la feuille de partage ; choisissez **Enregistrer l'image**. Les photos déjà copiées portent une coche verte ; le sommaire propose de copier celles qui restent. iOS n'autorise pas une app web à écrire dans Photos sans cette action.
 - La sauvegarde `.zip` peut être réimportée (**Importer une sauvegarde**) pour reprendre un audit sur un autre appareil.
 - Après une première ouverture avec réseau, l'app fonctionne **hors ligne** sur site.
 
